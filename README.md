@@ -16,6 +16,3 @@ This is a test repository created to demonstrate GitHub features and functionali
 
 Feel free to submit issues and pull requests.
 
-## License
-
-This project is licensed under the MIT License.
