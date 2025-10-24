@@ -1,0 +1,7 @@
+const prBody = context.payload.pull_request && context.payload.pull_request.body || "";
+const anyChecked = /\- \[[xX]\]\s+/.test(prBody);
+if (!anyChecked) {
+  core.setFailed("No checklist item is checked in the PR body. Please check at least one checkbox in the Checklist section before merging.");
+} else {
+  core.info("At least one checkbox is checked.");
+}
