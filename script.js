@@ -32,7 +32,7 @@ async function saveData(data) {
 // Example usage
 const page1Data = {
     title: 'Page 1',
-    content: 'page 1',
+    content: 'This is the content of page 1',
 };
 
 saveData(page1Data);
