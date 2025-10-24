@@ -1,0 +1,29 @@
+name: "PR Checklist Validation"
+pr-checklist.yml
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  validate-checklist:
+    runs-on: ubuntu-latest
+    name: Validate required checklist item
+    steps:
+      - name: Check required checkbox in PR body
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prBody = context.payload.pull_request && context.payload.pull_request.body || "";
+            // Configure the exact checkbox label you want to require:
+            const REQUIRED_LABEL = "Security review completed";
+            // We'll look for a checked markdown checkbox that contains the label text
+            const pattern = new RegExp(`- \\[[xX]\\]\\s*${escapeRegExp(REQUIRED_LABEL)}`);
+            function escapeRegExp(string) {
+              return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            if (!pattern.test(prBody)) {
+              core.setFailed(`Required checklist item not checked: "${REQUIRED_LABEL}". Please check it in the PR description.`);
+            } else {
+              core.info(`Required checklist item checked: "${REQUIRED_LABEL}"`);
+            }
