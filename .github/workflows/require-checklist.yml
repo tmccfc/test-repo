@@ -1,0 +1,104 @@
+name: "PR Checklist Validation"
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write   # needed to post/update comments
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: validate
+    steps:
+      - name: Validate checklist
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const core = require('@actions/core');
+            const github = require('@actions/github');
+
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.info("No pull_request in payload; exiting.");
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = pr.number;
+            const prBody = pr.body || "";
+
+            // CONFIG: Either set a specific checkbox label, e.g. "Security review completed",
+            // or set to "any" to require that at least one checkbox is checked.
+            const REQUIRED_CHECKBOX = (process.env.REQUIRED_CHECKBOX || "any").trim();
+            // CONFIG: whether to post/update a blocking comment when requirement is not met
+            const POST_COMMENT = (process.env.POST_COMMENT || "true").toLowerCase() === "true";
+
+            function escapeRegExp(s) {
+              return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            // Build regex (case-insensitive)
+            let checklistOk = false;
+            if (REQUIRED_CHECKBOX.toLowerCase() === "any") {
+              checklistOk = /\-\s*\[[xX]\]\s+/.test(prBody);
+            } else {
+              const pattern = new RegExp(`\\-\\s*\\[[xX]\\]\\s*${escapeRegExp(REQUIRED_CHECKBOX)}`, 'i');
+              checklistOk = pattern.test(prBody);
+            }
+
+            // Helper to find existing bot blocking comment (so we can update/delete it)
+            async function findBlockingComment() {
+              const comments = await github.rest.issues.listComments({
+                owner, repo, issue_number: prNumber, per_page: 100
+              });
+              const marker = '<!-- pr-checklist-validation -->';
+              return comments.data.find(c => c.user && c.body && c.body.includes(marker));
+            }
+
+            if (!checklistOk) {
+              const message =
+                REQUIRED_CHECKBOX.toLowerCase() === "any"
+                  ? "🔒 Merge blocked — please check at least one checkbox in the PR description (required before merging)."
+                  : `🔒 Merge blocked — please check the required checklist item in the PR description: **${REQUIRED_CHECKBOX}**.`;
+
+              core.setFailed(message);
+
+              if (POST_COMMENT) {
+                try {
+                  const existing = await findBlockingComment();
+                  const body = `${message}\n\nIf this is already done, re-save the PR description or push a tiny change to re-run checks.\n\n<!-- pr-checklist-validation -->`;
+                  if (existing) {
+                    await github.rest.issues.updateComment({
+                      owner, repo, comment_id: existing.id, body
+                    });
+                  } else {
+                    await github.rest.issues.createComment({
+                      owner, repo, issue_number: prNumber, body
+                    });
+                  }
+                } catch (err) {
+                  core.info(`Failed to post/update blocking comment: ${err.message}`);
+                }
+              }
+              return;
+            }
+
+            // If requirement satisfied, optionally remove previous blocking comment and succeed
+            core.info("Checklist requirement satisfied.");
+            if (POST_COMMENT) {
+              try {
+                const existing = await findBlockingComment();
+                if (existing) {
+                  await github.rest.issues.deleteComment({
+                    owner, repo, comment_id: existing.id
+                  });
+                }
+              } catch (err) {
+                core.info(`Failed to remove old blocking comment: ${err.message}`);
+              }
+            }
