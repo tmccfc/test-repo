@@ -1,5 +1,4 @@
 name: "PR Checklist Validation"
-
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize, labeled, unlabeled]
