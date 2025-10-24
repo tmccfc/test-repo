@@ -1,9 +1,2 @@
-## Summary
-
-<!-- Describe the change -->
-
-## Checklist (required before merging)
-
-- [ ] Security review completed
-- [ ] Unit tests added / updated
-- [ ] Documentation updated
+## Checklist
+- [ ] I acknowledge that I have read and understood the contribution guidelines.
