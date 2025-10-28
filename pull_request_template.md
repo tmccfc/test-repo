@@ -1,2 +1,2 @@
 ## Checklist
-- [ ] I acknowledge that I am activating automerge.
+- [ ] I acknowledge that I am activating auto-merge.
